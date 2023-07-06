@@ -34,7 +34,58 @@ This should work and you should see the body of your event in the logs. If you d
 * Choose or create a subscription
 * In this subscription:
     * Create an EventGrid Custom topic called "releases"
-    * Create a cloud function app called "poc-<your-name>-release-distribution-quality-gate". This will bundle all the cloud functions for quality gate, reciding in this repository. (globally unique)
-        * Setup the python 3.10 runtime stack in West Europe
-        * Link the deployment to this repo
-    * After creating the cloud function, link add the connection string of the storage account to the cloud function configuration with the key "AzureWebJobsStorage".
+    * Setup the function:
+        * Create a cloud function app called "poc-<your-name>-rdqc". This will bundle all the cloud functions for quality gate, reciding in this repository. (globally unique)
+            * Do this with the VS Code extension! Doing it through the Azure Portal will cause issues like the storage account not being created.
+            * Choose the advanced option to create a function app in VSCode. The other one doesn't allow you to configure the subscription where you're going to deploy this.
+            * Setup the python 3.10 runtime stack in West Europe
+        * In the Azure Portal, link the deployment to this repo in the deployment center of the function.
+        * Set AzureWebJobsFeatureFlags in the function configuration on Azure to EnableWorkerIndexing (necessary since python configures functions inline with annotations).
+    * Setup the integration between event grid and the function
+        * Create an event grid subscription on the created topic, calling it "release-validations"
+            * Use Cloud Event Schema V1.0
+            * Topic Type: Event Grid Topic
+            * Endpoint: ValidateRelease
+    * That's it!
+
+## Testing on Azure
+After the Azure setup, you can now try out publishing events to the topic and see the results in the logs.$
+
+* Open the Azure Cloud Shell
+* Execute these commands:
+```bash
+export event='{
+    "specversion" : "1.0",
+    "type" : "com.example.someevent",
+    "source" : "/mycontext",
+    "subject": null,
+    "id" : "C234-1234-1234",
+    "time" : "2018-04-05T17:31:00Z",
+    "comexampleextension1" : "value",
+    "comexampleothervalue" : 5,
+    "datacontenttype" : "application/json",
+    "data" : {
+        "appinfoA" : "abc",
+        "appinfoB" : 123,
+        "appinfoC" : true
+    }
+}'
+resourceGroup=<your-subscription>
+topicname=releases
+endpoint=$(az eventgrid topic show --name $topicname -g $resourceGroup --query "endpoint" --output tsv)
+key=$(az eventgrid topic key list --name $topicname -g $resourceGroup --query "key1" --output tsv)
+curl -v -X POST -H "aeg-sas-key: $key" -H "content-type:application/cloudevents+json" -d "$event" $endpoint
+```
+* In Azure CLI you should see the call returning 200 OK.
+* In the logs of the function, you should see something like this:
+```
+2023-07-06T14:40:23Z   [Information]   Executing 'Functions.ValidateRelease' (Reason='EventGrid trigger fired at 2023-07-06T14:40:22.5587945+00:00', Id=12040c9e-08c9-4378-8844-49c922a65869)
+2023-07-06T14:40:23Z   [Verbose]   Sending invocation id: '12040c9e-08c9-4378-8844-49c922a65869
+2023-07-06T14:40:23Z   [Verbose]   Posting invocation id:12040c9e-08c9-4378-8844-49c922a65869 on workerId:53ed56c1-8f4a-4bf7-9fe9-e536a6e44b79
+2023-07-06T14:40:23Z   [Information]   Python EventGrid trigger processed an event
+2023-07-06T14:40:23Z   [Information]   {'appinfoA': 'abc', 'appinfoB': 123, 'appinfoC': True}
+2023-07-06T14:40:23Z   [Information]   Executed 'Functions.ValidateRelease' (Succeeded, Id=12040c9e-08c9-4378-8844-49c922a65869, Duration=50ms)
+```
+* It could take a couple of seconds until the logs show up.
+
+If all went well, you're now master of your own event grid triggered python function!
