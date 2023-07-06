@@ -35,7 +35,7 @@ This should work and you should see the body of your event in the logs. If you d
 * In this subscription:
     * Create an EventGrid Custom topic called "releases"
     * Setup the function:
-        * Create a cloud function app called "poc-<your-name>-rdqc". This will bundle all the cloud functions for quality gate, reciding in this repository. (globally unique)
+        * Create a cloud function app called "poc-\<your-name\>-rdqc". This will bundle all the cloud functions for quality gate, reciding in this repository. (globally unique)
             * Do this with the VS Code extension! Doing it through the Azure Portal will cause issues like the storage account not being created.
             * Choose the advanced option to create a function app in VSCode. The other one doesn't allow you to configure the subscription where you're going to deploy this.
             * Setup the python 3.10 runtime stack in West Europe
