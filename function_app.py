@@ -8,3 +8,4 @@ app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 def ValidateRelease(azeventgrid: func.EventGridEvent):
     logging.info('Python EventGrid trigger processed an event')
     logging.info(azeventgrid.get_json())
+    logging.info("Zalmtoastje")
